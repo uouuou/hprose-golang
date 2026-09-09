@@ -107,7 +107,9 @@ func (trans *Transport) Transport(ctx context.Context, request []byte) (response
 	}
 }
 
+// Abort 释放连接资源：关闭空闲连接（进行中的请求不受影响）。
 func (trans *Transport) Abort() {
+	trans.FastHTTPClient.CloseIdleConnections()
 }
 
 // CookieManagerOption returns the CookieManagerOption

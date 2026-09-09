@@ -252,9 +252,10 @@ func (trans *Transport) getConn(ctx context.Context) (conn *conn, err error) {
 		trans.lock.Lock()
 		if trans.conns[key] == conn {
 			delete(trans.conns, key)
-			cancel()
 		}
 		trans.lock.Unlock()
+		// 必须无条件取消本连接的上下文，否则 Abort()/重连后 Send goroutine 会泄漏。
+		cancel()
 	}
 	go conn.Send(ctx, onExit)
 	go conn.Receive(ctx, onExit)

@@ -139,7 +139,24 @@ func (trans *Transport) Transport(ctx context.Context, request []byte) ([]byte, 
 	}
 }
 
+// Abort 释放连接资源：关闭所有分片的空闲连接。
+// 进行中的请求不受影响，后续调用会按需重新建连。
+// HTTP/2 客户端的连接不会像 HTTP/1.1 那样受 IdleConnTimeout 回收，
+// 不显式关闭会让客户端连接（以及服务端对应的处理 goroutine）一直驻留。
 func (trans *Transport) Abort() {
+	closeIdle := func(c *http.Client) {
+		if t, ok := c.Transport.(interface{ CloseIdleConnections() }); ok {
+			t.CloseIdleConnections()
+		}
+	}
+	closeIdle(&trans.HTTPClient)
+	closeIdle(&trans.h2cClient)
+	for i := range trans.httpShards {
+		closeIdle(&trans.httpShards[i])
+	}
+	for i := range trans.h2cShards {
+		closeIdle(&trans.h2cShards[i])
+	}
 }
 
 // eachHTTPTransport 对基准 client 与所有 http 分片的 *http.Transport 执行 fn，

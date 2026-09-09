@@ -310,9 +310,11 @@ func (trans *Transport) getConn(ctx context.Context) (conn *conn, err error) {
 		trans.lock.Lock()
 		if trans.conns[key] == conn {
 			delete(trans.conns, key)
-			cancel()
 		}
 		trans.lock.Unlock()
+		// 必须无条件取消本连接的上下文：Abort()/重连会整体替换 conns，
+		// 若只在命中映射项时取消，Send goroutine 会永久阻塞在请求队列上无法退出。
+		cancel()
 	}
 	go conn.Send(ctx, onExit)
 	go conn.Receive(ctx, onExit)
