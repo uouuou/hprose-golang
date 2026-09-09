@@ -18,8 +18,8 @@ import (
 	"testing"
 	"time"
 
-	. "github.com/hprose/hprose-golang/v3/io"
 	"github.com/stretchr/testify/assert"
+	. "github.com/uouuou/hprose-golang/v3/io"
 )
 
 func init() {

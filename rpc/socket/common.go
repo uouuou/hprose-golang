@@ -18,7 +18,7 @@ import (
 	"net"
 	"time"
 
-	"github.com/hprose/hprose-golang/v3/rpc/core"
+	"github.com/uouuou/hprose-golang/v3/rpc/core"
 )
 
 type data struct {
@@ -26,6 +26,13 @@ type data struct {
 	Body  []byte
 	Error error
 }
+
+// 单次批量写的帧数与字节上限：把同一连接上就绪的多个帧合并为一次系统调用
+// （writev/WSASend 多缓冲），上限防止大消息饿死同连接上的小消息。
+const (
+	maxBatchFrames = 32
+	maxBatchBytes  = 64 * 1024
+)
 
 func makeHeader(length int, index int) (header [12]byte) {
 	header[11] = byte(index & 0xff)

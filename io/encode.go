@@ -16,7 +16,7 @@ package io
 import (
 	"math"
 
-	"github.com/hprose/hprose-golang/v3/internal/convert"
+	"github.com/uouuou/hprose-golang/v3/internal/convert"
 )
 
 const (

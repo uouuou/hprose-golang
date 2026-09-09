@@ -18,8 +18,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/hprose/hprose-golang/v3/io"
-	"github.com/hprose/hprose-golang/v3/rpc/core"
+	"github.com/uouuou/hprose-golang/v3/io"
+	"github.com/uouuou/hprose-golang/v3/rpc/core"
 )
 
 type Callback interface{}

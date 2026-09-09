@@ -18,7 +18,7 @@ import (
 	"net/url"
 	"reflect"
 
-	"github.com/hprose/hprose-golang/v3/rpc/core"
+	"github.com/uouuou/hprose-golang/v3/rpc/core"
 )
 
 // Server for mock.

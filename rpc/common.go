@@ -13,7 +13,7 @@
 
 package rpc
 
-import "github.com/hprose/hprose-golang/v3/rpc/core"
+import "github.com/uouuou/hprose-golang/v3/rpc/core"
 
 type (
 	// Context for RPC.

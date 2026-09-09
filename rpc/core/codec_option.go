@@ -13,7 +13,7 @@
 
 package core
 
-import "github.com/hprose/hprose-golang/v3/io"
+import "github.com/uouuou/hprose-golang/v3/io"
 
 // CodecOption for clientCodec & serviceCodec.
 type CodecOption func(interface{})

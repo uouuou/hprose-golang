@@ -16,8 +16,8 @@ package jsonrpc
 import (
 	"reflect"
 
-	"github.com/hprose/hprose-golang/v3/rpc/core"
 	"github.com/modern-go/reflect2"
+	"github.com/uouuou/hprose-golang/v3/rpc/core"
 )
 
 type ServiceCodec struct {

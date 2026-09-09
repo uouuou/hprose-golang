@@ -17,7 +17,7 @@ import (
 	"context"
 	"sync"
 
-	"github.com/hprose/hprose-golang/v3/rpc/core"
+	"github.com/uouuou/hprose-golang/v3/rpc/core"
 )
 
 // WeightedRoundRobinLoadBalance plugin for hprose.

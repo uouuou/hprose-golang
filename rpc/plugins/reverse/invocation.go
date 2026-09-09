@@ -18,7 +18,7 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/hprose/hprose-golang/v3/rpc/core"
+	"github.com/uouuou/hprose-golang/v3/rpc/core"
 )
 
 var errorType = reflect.TypeOf((*error)(nil)).Elem()

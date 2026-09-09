@@ -25,8 +25,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hprose/hprose-golang/v3/internal/convert"
-	"github.com/hprose/hprose-golang/v3/rpc/core"
+	"github.com/uouuou/hprose-golang/v3/internal/convert"
+	"github.com/uouuou/hprose-golang/v3/rpc/core"
 	"github.com/valyala/fasthttp"
 )
 
@@ -111,6 +111,17 @@ func (h *Handler) SetClientAccessPolicyXMLContent(content []byte) {
 func (h *Handler) BindContext(ctx context.Context, server core.Server) {
 	switch s := server.(type) {
 	case *http.Server:
+		// HTTP/2：TLS 下由 ALPN 协商；明文连接启用 h2c（标准库 Protocols，
+		// golang.org/x/net/http2/h2c 已弃用）。明文连接先做 HTTP/2 preface
+		// 探测，非 h2 连接自动回落 HTTP/1.1，老客户端不受影响。
+		// 仅在用户未自定义 Protocols 时设置，尊重调用方配置。
+		if s.Protocols == nil {
+			var protocols http.Protocols
+			protocols.SetHTTP1(true)
+			protocols.SetHTTP2(true)
+			protocols.SetUnencryptedHTTP2(true)
+			s.Protocols = &protocols
+		}
 		s.Handler = h
 		s.BaseContext = func(l net.Listener) context.Context {
 			return ctx

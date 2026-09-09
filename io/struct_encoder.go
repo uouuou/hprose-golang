@@ -18,8 +18,8 @@ import (
 	"reflect"
 	"sync"
 
-	"github.com/hprose/hprose-golang/v3/internal/convert"
 	"github.com/modern-go/reflect2"
+	"github.com/uouuou/hprose-golang/v3/internal/convert"
 )
 
 // structEncoder is the implementation of ValueEncoder for named struct/*struct.

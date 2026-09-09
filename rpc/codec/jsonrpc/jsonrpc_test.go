@@ -20,12 +20,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hprose/hprose-golang/v3/rpc"
-	"github.com/hprose/hprose-golang/v3/rpc/codec/jsonrpc"
-	"github.com/hprose/hprose-golang/v3/rpc/core"
-	"github.com/hprose/hprose-golang/v3/rpc/plugins/log"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/stretchr/testify/assert"
+	"github.com/uouuou/hprose-golang/v3/rpc"
+	"github.com/uouuou/hprose-golang/v3/rpc/codec/jsonrpc"
+	"github.com/uouuou/hprose-golang/v3/rpc/core"
+	"github.com/uouuou/hprose-golang/v3/rpc/plugins/log"
 )
 
 type testService int

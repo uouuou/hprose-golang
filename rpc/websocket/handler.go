@@ -24,9 +24,9 @@ import (
 	"time"
 
 	"github.com/fasthttp/websocket"
-	"github.com/hprose/hprose-golang/v3/internal/convert"
-	"github.com/hprose/hprose-golang/v3/rpc/core"
-	rpchttp "github.com/hprose/hprose-golang/v3/rpc/http"
+	"github.com/uouuou/hprose-golang/v3/internal/convert"
+	"github.com/uouuou/hprose-golang/v3/rpc/core"
+	rpchttp "github.com/uouuou/hprose-golang/v3/rpc/http"
 	"github.com/valyala/fasthttp"
 )
 
@@ -273,7 +273,7 @@ func (h *Handler) Serve(ctx context.Context, conn *websocket.Conn) {
 		h.onClose(conn)
 		conn.Close()
 	}()
-	queue := make(chan data)
+	queue := make(chan data, 256)
 	errChan := make(chan error, 1)
 	go h.receive(ctx, conn, queue, errChan)
 	go h.send(ctx, conn, queue, errChan)

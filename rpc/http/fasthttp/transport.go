@@ -19,9 +19,9 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/hprose/hprose-golang/v3/internal/convert"
-	"github.com/hprose/hprose-golang/v3/rpc/core"
-	"github.com/hprose/hprose-golang/v3/rpc/http/cookie"
+	"github.com/uouuou/hprose-golang/v3/internal/convert"
+	"github.com/uouuou/hprose-golang/v3/rpc/core"
+	"github.com/uouuou/hprose-golang/v3/rpc/http/cookie"
 	"github.com/valyala/fasthttp"
 )
 

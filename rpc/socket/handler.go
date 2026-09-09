@@ -14,6 +14,7 @@
 package socket
 
 import (
+	"bufio"
 	"context"
 	"crypto/tls"
 	"io"
@@ -22,9 +23,12 @@ import (
 	"reflect"
 	"time"
 
-	"github.com/hprose/hprose-golang/v3/internal/convert"
-	"github.com/hprose/hprose-golang/v3/rpc/core"
+	"github.com/uouuou/hprose-golang/v3/internal/convert"
+	"github.com/uouuou/hprose-golang/v3/rpc/core"
 )
+
+// readBufferSize 服务端读缓冲大小：头与体常在同一 TCP 段内，缓冲读可将其合并为一次系统调用。
+const readBufferSize = 32 * 1024
 
 type Handler struct {
 	Service  *core.Service
@@ -127,7 +131,7 @@ func (h *Handler) catch(ctx context.Context, errChan chan error) {
 	}
 }
 
-func (h *Handler) receive(ctx context.Context, conn net.Conn, queue chan data, errChan chan error) {
+func (h *Handler) receive(ctx context.Context, r *bufio.Reader, conn net.Conn, queue chan data, errChan chan error) {
 	defer h.catch(ctx, errChan)
 	var header [12]byte
 	for {
@@ -135,7 +139,7 @@ func (h *Handler) receive(ctx context.Context, conn net.Conn, queue chan data, e
 		case <-ctx.Done():
 			return
 		default:
-			if _, err := io.ReadAtLeast(conn, header[:], 12); err != nil {
+			if _, err := io.ReadAtLeast(r, header[:], 12); err != nil {
 				h.reportError(ctx, errChan, err)
 				return
 			}
@@ -149,7 +153,7 @@ func (h *Handler) receive(ctx context.Context, conn net.Conn, queue chan data, e
 				return
 			}
 			body := make([]byte, length)
-			if _, err := io.ReadAtLeast(conn, body, length); err != nil {
+			if _, err := io.ReadAtLeast(r, body, length); err != nil {
 				h.reportError(ctx, errChan, err)
 				return
 			}
@@ -162,33 +166,53 @@ func (h *Handler) receive(ctx context.Context, conn net.Conn, queue chan data, e
 	}
 }
 
+// send 批量写响应：阻塞取首帧后，把就绪的后续帧合并为一次系统调用写出。
+// 错误帧（协议级错误）写完后终止连接，与历史语义一致。
 func (h *Handler) send(ctx context.Context, conn net.Conn, queue chan data, errChan chan error) {
 	defer h.catch(ctx, errChan)
+	var (
+		buffers net.Buffers
+		headers [maxBatchFrames][12]byte
+	)
 	for {
 		select {
 		case <-ctx.Done():
 			return
 		case response := <-queue:
-			index, body, e := response.Index, response.Body, response.Error
-			if e != nil {
-				index |= math.MinInt32
-				if e == core.ErrRequestEntityTooLarge {
-					body = convert.ToUnsafeBytes(core.RequestEntityTooLarge)
-				} else {
-					body = convert.ToUnsafeBytes(e.Error())
+			var fatal error
+			buffers = buffers[:0]
+			count, total := 0, 0
+		collect:
+			for {
+				index, body, e := response.Index, response.Body, response.Error
+				if e != nil {
+					index |= math.MinInt32
+					if e == core.ErrRequestEntityTooLarge {
+						body = convert.ToUnsafeBytes(core.RequestEntityTooLarge)
+					} else {
+						body = convert.ToUnsafeBytes(e.Error())
+					}
+					fatal = e
+				}
+				headers[count] = makeHeader(len(body), index)
+				buffers = append(buffers, headers[count][:], body)
+				count++
+				total += len(body)
+				if fatal != nil || count >= maxBatchFrames || total >= maxBatchBytes {
+					break
+				}
+				select {
+				case response = <-queue:
+				default:
+					break collect
 				}
 			}
-			header := makeHeader(len(body), index)
-			_, err := conn.Write(header[:])
-			if err == nil {
-				_, err = conn.Write(body)
-			}
-			if err != nil {
+			if _, err := buffers.WriteTo(conn); err != nil {
 				h.reportError(ctx, errChan, err)
 				return
 			}
-			if e != nil {
-				h.reportError(ctx, errChan, e)
+			if fatal != nil {
+				h.reportError(ctx, errChan, fatal)
 				return
 			}
 		}
@@ -212,9 +236,11 @@ func (h *Handler) Serve(ctx context.Context, conn net.Conn) {
 		h.onClose(conn)
 		conn.Close()
 	}()
-	queue := make(chan data)
+	queue := make(chan data, 256)
 	errChan := make(chan error, 1)
-	go h.receive(ctx, conn, queue, errChan)
+	// 读路径单独走缓冲：连接本体保留给写路径与 push/reverse 插件使用。
+	reader := bufio.NewReaderSize(conn, readBufferSize)
+	go h.receive(ctx, reader, conn, queue, errChan)
 	go h.send(ctx, conn, queue, errChan)
 	select {
 	case <-ctx.Done():

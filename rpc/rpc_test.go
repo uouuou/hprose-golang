@@ -28,12 +28,12 @@ import (
 	"time"
 
 	"github.com/fasthttp/websocket"
-	"github.com/hprose/hprose-golang/v3/io"
-	"github.com/hprose/hprose-golang/v3/rpc"
-	"github.com/hprose/hprose-golang/v3/rpc/plugins/log"
-	"github.com/hprose/hprose-golang/v3/rpc/plugins/push"
-	"github.com/hprose/hprose-golang/v3/rpc/plugins/reverse"
 	"github.com/stretchr/testify/assert"
+	"github.com/uouuou/hprose-golang/v3/io"
+	"github.com/uouuou/hprose-golang/v3/rpc"
+	"github.com/uouuou/hprose-golang/v3/rpc/plugins/log"
+	"github.com/uouuou/hprose-golang/v3/rpc/plugins/push"
+	"github.com/uouuou/hprose-golang/v3/rpc/plugins/reverse"
 )
 
 type Person struct {

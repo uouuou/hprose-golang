@@ -19,7 +19,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/hprose/hprose-golang/v3/internal/convert"
+	"github.com/uouuou/hprose-golang/v3/internal/convert"
 	"github.com/valyala/fasthttp"
 )
 

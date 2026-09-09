@@ -21,21 +21,36 @@ import (
 	"net"
 	"net/http"
 	"net/http/cookiejar"
+	"strings"
 	"time"
 
-	"github.com/hprose/hprose-golang/v3/rpc/core"
-	"github.com/hprose/hprose-golang/v3/rpc/http/cookie"
+	"golang.org/x/net/http2"
+
+	"github.com/uouuou/hprose-golang/v3/rpc/core"
+	"github.com/uouuou/hprose-golang/v3/rpc/http/cookie"
 )
 
 type Transport struct {
 	DisableHTTPHeader bool
 	Header            http.Header
 	HTTPClient        http.Client
+	// h2cClient 明文 HTTP/2 客户端，仅 h2c:// scheme 使用；
+	// http:// 请求仍走 HTTP/1.1，https:// 由 ForceAttemptHTTP2 经 ALPN 自动协商 h2。
+	h2cClient http.Client
 }
 
 func (trans *Transport) Transport(ctx context.Context, request []byte) ([]byte, error) {
 	clientContext := core.GetClientContext(ctx)
-	req, err := http.NewRequestWithContext(ctx, "POST", clientContext.URL.String(), bytes.NewReader(request))
+	target := clientContext.URL.String()
+	client := &trans.HTTPClient
+	switch clientContext.URL.Scheme {
+	case "h2c": // 明文 HTTP/2
+		target = "http" + strings.TrimPrefix(target, "h2c")
+		client = &trans.h2cClient
+	case "h2": // TLS HTTP/2，等价 https（ALPN 自动协商）
+		target = "https" + strings.TrimPrefix(target, "h2")
+	}
+	req, err := http.NewRequestWithContext(ctx, "POST", target, bytes.NewReader(request))
 	if err != nil {
 		return nil, err
 	}
@@ -48,7 +63,7 @@ func (trans *Transport) Transport(ctx context.Context, request []byte) ([]byte, 
 		}
 	}
 	var resp *http.Response
-	resp, err = trans.HTTPClient.Do(req)
+	resp, err = client.Do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -88,10 +103,13 @@ func (trans *Transport) SetCookieManagerOption(option cookie.CookieManagerOption
 	switch option {
 	case cookie.NoCookieManager:
 		trans.HTTPClient.Jar = nil
+		trans.h2cClient.Jar = nil
 	case cookie.GlobalCookieManager:
 		trans.HTTPClient.Jar = globalCookieJar
+		trans.h2cClient.Jar = globalCookieJar
 	default:
 		trans.HTTPClient.Jar, _ = cookiejar.New(nil)
+		trans.h2cClient.Jar, _ = cookiejar.New(nil)
 	}
 }
 
@@ -137,21 +155,35 @@ func (factory transportFactory) Schemes() []string {
 
 func (factory transportFactory) New() core.Transport {
 	transport := &Transport{}
+	dialer := &net.Dialer{
+		Timeout:   time.Second,
+		KeepAlive: time.Second * 30,
+		DualStack: true,
+	}
 	transport.HTTPClient.Transport = &http.Transport{
-		DialContext: (&net.Dialer{
-			Timeout:   time.Second,
-			KeepAlive: time.Second * 30,
-			DualStack: true,
-		}).DialContext,
+		DialContext:           dialer.DialContext,
 		MaxIdleConnsPerHost:   100,
 		IdleConnTimeout:       time.Minute,
 		TLSHandshakeTimeout:   time.Second,
 		ExpectContinueTimeout: time.Millisecond * 500,
+		// https 经 ALPN 自动协商 HTTP/2；http 明文保持 HTTP/1.1（明文 h2 走 h2c:// scheme）
+		ForceAttemptHTTP2: true,
 	}
 	transport.HTTPClient.Jar = globalCookieJar
+	transport.h2cClient = http.Client{
+		Transport: &http2.Transport{
+			AllowHTTP:       true,
+			TLSClientConfig: &tls.Config{MinVersion: tls.VersionTLS12},
+			// 明文直连：h2c 不经 TLS，DialTLSContext 直接返回 TCP 连接
+			DialTLSContext: func(ctx context.Context, network, addr string, _ *tls.Config) (net.Conn, error) {
+				return dialer.DialContext(ctx, network, addr)
+			},
+		},
+		Jar: globalCookieJar,
+	}
 	return transport
 }
 
 func RegisterTransport() {
-	core.RegisterTransport("http", transportFactory{[]string{"http", "https"}})
+	core.RegisterTransport("http", transportFactory{[]string{"http", "https", "h2c", "h2"}})
 }

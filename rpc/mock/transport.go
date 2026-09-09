@@ -16,7 +16,7 @@ package mock
 import (
 	"context"
 
-	"github.com/hprose/hprose-golang/v3/rpc/core"
+	"github.com/uouuou/hprose-golang/v3/rpc/core"
 )
 
 type Transport struct{}

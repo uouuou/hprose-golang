@@ -16,7 +16,7 @@ package io
 import (
 	"strconv"
 
-	"github.com/hprose/hprose-golang/v3/internal/convert"
+	"github.com/uouuou/hprose-golang/v3/internal/convert"
 )
 
 const invalidDigit = uint64(0xff)

@@ -18,8 +18,8 @@ import (
 	"reflect"
 	"testing"
 
-	. "github.com/hprose/hprose-golang/v3/rpc/core"
 	"github.com/stretchr/testify/assert"
+	. "github.com/uouuou/hprose-golang/v3/rpc/core"
 )
 
 func TestProxy(t *testing.T) {

@@ -14,8 +14,8 @@
 package core
 
 import (
-	"github.com/hprose/hprose-golang/v3/io"
 	"github.com/modern-go/reflect2"
+	"github.com/uouuou/hprose-golang/v3/io"
 )
 
 // ClientCodec for RPC.

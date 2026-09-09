@@ -25,19 +25,19 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hprose/hprose-golang/v3/rpc/core"
-	http "github.com/hprose/hprose-golang/v3/rpc/http"
-	"github.com/hprose/hprose-golang/v3/rpc/plugins/circuitbreaker"
-	"github.com/hprose/hprose-golang/v3/rpc/plugins/cluster"
-	"github.com/hprose/hprose-golang/v3/rpc/plugins/forward"
-	"github.com/hprose/hprose-golang/v3/rpc/plugins/limiter"
-	"github.com/hprose/hprose-golang/v3/rpc/plugins/loadbalance"
-	"github.com/hprose/hprose-golang/v3/rpc/plugins/log"
-	"github.com/hprose/hprose-golang/v3/rpc/plugins/oneway"
-	"github.com/hprose/hprose-golang/v3/rpc/plugins/timeout"
-	socket "github.com/hprose/hprose-golang/v3/rpc/socket"
-	udp "github.com/hprose/hprose-golang/v3/rpc/udp"
 	"github.com/stretchr/testify/assert"
+	"github.com/uouuou/hprose-golang/v3/rpc/core"
+	http "github.com/uouuou/hprose-golang/v3/rpc/http"
+	"github.com/uouuou/hprose-golang/v3/rpc/plugins/circuitbreaker"
+	"github.com/uouuou/hprose-golang/v3/rpc/plugins/cluster"
+	"github.com/uouuou/hprose-golang/v3/rpc/plugins/forward"
+	"github.com/uouuou/hprose-golang/v3/rpc/plugins/limiter"
+	"github.com/uouuou/hprose-golang/v3/rpc/plugins/loadbalance"
+	"github.com/uouuou/hprose-golang/v3/rpc/plugins/log"
+	"github.com/uouuou/hprose-golang/v3/rpc/plugins/oneway"
+	"github.com/uouuou/hprose-golang/v3/rpc/plugins/timeout"
+	socket "github.com/uouuou/hprose-golang/v3/rpc/socket"
+	udp "github.com/uouuou/hprose-golang/v3/rpc/udp"
 )
 
 func init() {
@@ -1508,6 +1508,9 @@ func TestRobustness(t *testing.T) {
 	httpClient := core.NewClient("http://127.0.0.1:8412/")
 	tcpClient := core.NewClient("tcp://127.0.0.1/")
 	udpClient := core.NewClient("udp://127.0.0.1/")
+	// Windows 回环对无监听的 UDP 端口不返回 ICMP 不可达，调用会等待客户端超时；
+	// 缩短 udp 客户端超时避免本测试在 Windows 上等待 100×30s。
+	udpClient.Timeout = time.Second
 	var proxy1, proxy2, proxy3 struct {
 		Hello func(name string) (string, error)
 	}
@@ -1550,4 +1553,43 @@ func TestUnixSocket(t *testing.T) {
 	assert.Equal(t, "hello world", result)
 	assert.NoError(t, err)
 	server.Close()
+}
+
+// TestConcurrentEcho 高并发正确性：单连接多路复用 + 批量写下校验每个响应与请求一一对应，
+// 防止 index 错乱或帧粘连。
+func TestConcurrentEcho(t *testing.T) {
+	service := core.NewService()
+	service.AddFunction(func(name string) string {
+		return "hello " + name
+	}, "hello")
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	assert.NoError(t, err)
+	err = service.Bind(listener)
+	assert.NoError(t, err)
+
+	time.Sleep(time.Millisecond * 5)
+
+	client := core.NewClient("tcp://" + listener.Addr().String() + "/")
+	var proxy struct {
+		Hello func(name string) (string, error)
+	}
+	client.UseService(&proxy)
+	var wg sync.WaitGroup
+	const workers = 128
+	const calls = 20
+	wg.Add(workers)
+	for w := 0; w < workers; w++ {
+		go func(w int) {
+			defer wg.Done()
+			for i := 0; i < calls; i++ {
+				name := fmt.Sprintf("world-%d-%d", w, i)
+				result, err := proxy.Hello(name)
+				assert.NoError(t, err)
+				assert.Equal(t, "hello "+name, result)
+			}
+		}(w)
+	}
+	wg.Wait()
+	client.Abort()
+	listener.Close()
 }

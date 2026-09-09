@@ -14,12 +14,12 @@
 package rpc
 
 import (
-	"github.com/hprose/hprose-golang/v3/rpc/core"
-	"github.com/hprose/hprose-golang/v3/rpc/http"
-	"github.com/hprose/hprose-golang/v3/rpc/mock"
-	"github.com/hprose/hprose-golang/v3/rpc/socket"
-	"github.com/hprose/hprose-golang/v3/rpc/udp"
-	"github.com/hprose/hprose-golang/v3/rpc/websocket"
+	"github.com/uouuou/hprose-golang/v3/rpc/core"
+	"github.com/uouuou/hprose-golang/v3/rpc/http"
+	"github.com/uouuou/hprose-golang/v3/rpc/mock"
+	"github.com/uouuou/hprose-golang/v3/rpc/socket"
+	"github.com/uouuou/hprose-golang/v3/rpc/udp"
+	"github.com/uouuou/hprose-golang/v3/rpc/websocket"
 )
 
 func init() {

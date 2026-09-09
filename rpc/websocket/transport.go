@@ -21,7 +21,7 @@ import (
 	"sync/atomic"
 
 	"github.com/fasthttp/websocket"
-	"github.com/hprose/hprose-golang/v3/rpc/core"
+	"github.com/uouuou/hprose-golang/v3/rpc/core"
 )
 
 type conn struct {
@@ -56,7 +56,7 @@ func newConn(ctx context.Context, onConnect func(*websocket.Conn) *websocket.Con
 	}
 	return &conn{
 		Conn:     onConnect(c),
-		requests: make(chan data),
+		requests: make(chan data, 256),
 		onClose:  onClose,
 		results:  make(map[int]chan data),
 	}, nil

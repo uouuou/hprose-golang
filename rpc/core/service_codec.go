@@ -17,7 +17,7 @@ import (
 	"errors"
 	"reflect"
 
-	"github.com/hprose/hprose-golang/v3/io"
+	"github.com/uouuou/hprose-golang/v3/io"
 )
 
 // ServiceCodec for RPC.

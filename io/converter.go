@@ -22,8 +22,8 @@ import (
 	"unsafe"
 
 	"github.com/google/uuid"
-	"github.com/hprose/hprose-golang/v3/internal/convert"
 	"github.com/modern-go/reflect2"
+	"github.com/uouuou/hprose-golang/v3/internal/convert"
 )
 
 func Convert(src interface{}, t reflect.Type) (interface{}, error) {

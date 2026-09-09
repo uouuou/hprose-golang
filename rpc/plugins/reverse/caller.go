@@ -21,10 +21,10 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/hprose/hprose-golang/v3/io"
-	"github.com/hprose/hprose-golang/v3/rpc/core"
 	"github.com/modern-go/reflect2"
 	cmap "github.com/orcaman/concurrent-map"
+	"github.com/uouuou/hprose-golang/v3/io"
+	"github.com/uouuou/hprose-golang/v3/rpc/core"
 )
 
 type call [3]interface{}

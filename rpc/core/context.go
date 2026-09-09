@@ -19,7 +19,7 @@ import (
 
 type contextKeyT string
 
-var contextKey = contextKeyT("github.com/hprose/hprose-golang/rpc/core.Context")
+var contextKey = contextKeyT("github.com/uouuou/hprose-golang/rpc/core.Context")
 
 // Context for RPC.
 type Context interface {

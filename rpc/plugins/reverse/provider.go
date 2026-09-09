@@ -20,8 +20,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/hprose/hprose-golang/v3/io"
-	"github.com/hprose/hprose-golang/v3/rpc/core"
+	"github.com/uouuou/hprose-golang/v3/io"
+	"github.com/uouuou/hprose-golang/v3/rpc/core"
 )
 
 type contextMissingMethod = func(ctx context.Context, name string, args []interface{}) (result []interface{}, err error)

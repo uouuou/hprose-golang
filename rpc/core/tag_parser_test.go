@@ -18,8 +18,8 @@ import (
 	"testing"
 	"time"
 
-	. "github.com/hprose/hprose-golang/v3/rpc/core"
 	"github.com/stretchr/testify/assert"
+	. "github.com/uouuou/hprose-golang/v3/rpc/core"
 )
 
 func TestTagParser(t *testing.T) {

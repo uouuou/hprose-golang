@@ -14,20 +14,20 @@
 package hprose
 
 import (
-	"github.com/hprose/hprose-golang/v3/io"
-	"github.com/hprose/hprose-golang/v3/rpc"
-	"github.com/hprose/hprose-golang/v3/rpc/codec/jsonrpc"
-	"github.com/hprose/hprose-golang/v3/rpc/http/cookie"
-	"github.com/hprose/hprose-golang/v3/rpc/plugins/circuitbreaker"
-	"github.com/hprose/hprose-golang/v3/rpc/plugins/cluster"
-	"github.com/hprose/hprose-golang/v3/rpc/plugins/forward"
-	"github.com/hprose/hprose-golang/v3/rpc/plugins/limiter"
-	"github.com/hprose/hprose-golang/v3/rpc/plugins/loadbalance"
-	"github.com/hprose/hprose-golang/v3/rpc/plugins/log"
-	"github.com/hprose/hprose-golang/v3/rpc/plugins/oneway"
-	"github.com/hprose/hprose-golang/v3/rpc/plugins/push"
-	"github.com/hprose/hprose-golang/v3/rpc/plugins/reverse"
-	"github.com/hprose/hprose-golang/v3/rpc/plugins/timeout"
+	"github.com/uouuou/hprose-golang/v3/io"
+	"github.com/uouuou/hprose-golang/v3/rpc"
+	"github.com/uouuou/hprose-golang/v3/rpc/codec/jsonrpc"
+	"github.com/uouuou/hprose-golang/v3/rpc/http/cookie"
+	"github.com/uouuou/hprose-golang/v3/rpc/plugins/circuitbreaker"
+	"github.com/uouuou/hprose-golang/v3/rpc/plugins/cluster"
+	"github.com/uouuou/hprose-golang/v3/rpc/plugins/forward"
+	"github.com/uouuou/hprose-golang/v3/rpc/plugins/limiter"
+	"github.com/uouuou/hprose-golang/v3/rpc/plugins/loadbalance"
+	"github.com/uouuou/hprose-golang/v3/rpc/plugins/log"
+	"github.com/uouuou/hprose-golang/v3/rpc/plugins/oneway"
+	"github.com/uouuou/hprose-golang/v3/rpc/plugins/push"
+	"github.com/uouuou/hprose-golang/v3/rpc/plugins/reverse"
+	"github.com/uouuou/hprose-golang/v3/rpc/plugins/timeout"
 )
 
 type (

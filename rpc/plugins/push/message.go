@@ -16,7 +16,7 @@ package push
 import (
 	"sync"
 
-	"github.com/hprose/hprose-golang/v3/io"
+	"github.com/uouuou/hprose-golang/v3/io"
 )
 
 type Message struct {

@@ -16,8 +16,8 @@ package core_test
 import (
 	"testing"
 
-	. "github.com/hprose/hprose-golang/v3/rpc/core"
 	"github.com/stretchr/testify/assert"
+	. "github.com/uouuou/hprose-golang/v3/rpc/core"
 )
 
 func TestSafeDict(t *testing.T) {

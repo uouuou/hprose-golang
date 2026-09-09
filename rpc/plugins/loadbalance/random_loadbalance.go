@@ -17,7 +17,7 @@ import (
 	"context"
 	"math/rand"
 
-	"github.com/hprose/hprose-golang/v3/rpc/core"
+	"github.com/uouuou/hprose-golang/v3/rpc/core"
 )
 
 // RandomLoadBalance plugin for hprose.

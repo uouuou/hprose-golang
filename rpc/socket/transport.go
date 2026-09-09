@@ -14,6 +14,7 @@
 package socket
 
 import (
+	"bufio"
 	"context"
 	"io"
 	"net"
@@ -21,17 +22,21 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/hprose/hprose-golang/v3/rpc/core"
+	"github.com/uouuou/hprose-golang/v3/rpc/core"
 )
 
 type conn struct {
 	net.Conn
+	reader   *bufio.Reader // 读缓冲：头与体常在同一 TCP 段内，合并为一次系统调用
 	requests chan data
 	results  map[int]chan data
 	lock     sync.Mutex
 	counter  int32
 	onClose  func(net.Conn)
 	once     sync.Once
+	// 以下字段仅 Send goroutine 访问，用于批量写的缓冲复用
+	buffers net.Buffers
+	headers [maxBatchFrames][12]byte
 }
 
 func dial(ctx context.Context) (net.Conn, error) {
@@ -55,9 +60,11 @@ func newConn(ctx context.Context, onConnect func(net.Conn) net.Conn, onClose fun
 	if err != nil {
 		return nil, err
 	}
+	wrapped := onConnect(c)
 	return &conn{
-		Conn:     onConnect(c),
-		requests: make(chan data),
+		Conn:     wrapped,
+		reader:   bufio.NewReaderSize(wrapped, readBufferSize),
+		requests: make(chan data, 256),
 		onClose:  onClose,
 		results:  make(map[int]chan data),
 	}, nil
@@ -142,6 +149,31 @@ func (c *conn) send(request data) (err error) {
 	return
 }
 
+// sendBatch 批量写请求：阻塞取首帧后，把就绪的后续帧合并为一次系统调用写出。
+// buffers/headers 仅 Send goroutine 访问，跨批次复用，无额外分配。
+func (c *conn) sendBatch(first data) error {
+	request := first
+	c.buffers = c.buffers[:0]
+	count, total := 0, 0
+	for {
+		c.headers[count] = makeHeader(len(request.Body), request.Index)
+		c.buffers = append(c.buffers, c.headers[count][:], request.Body)
+		count++
+		total += len(request.Body)
+		if count >= maxBatchFrames || total >= maxBatchBytes {
+			break
+		}
+		select {
+		case request = <-c.requests:
+		default:
+			_, err := c.buffers.WriteTo(c.Conn)
+			return err
+		}
+	}
+	_, err := c.buffers.WriteTo(c.Conn)
+	return err
+}
+
 func (c *conn) Send(ctx context.Context, onExit func()) {
 	var err error
 	defer func() {
@@ -152,7 +184,7 @@ func (c *conn) Send(ctx context.Context, onExit func()) {
 		case <-ctx.Done():
 			return
 		case request := <-c.requests:
-			if err = c.send(request); err != nil {
+			if err = c.sendBatch(request); err != nil {
 				return
 			}
 		}
@@ -161,7 +193,7 @@ func (c *conn) Send(ctx context.Context, onExit func()) {
 
 func (c *conn) receive() (err error) {
 	var header [12]byte
-	if _, err = io.ReadAtLeast(c.Conn, header[:], 12); err != nil {
+	if _, err = io.ReadAtLeast(c.reader, header[:], 12); err != nil {
 		return
 	}
 	length, index, ok := parseHeader(header)
@@ -170,7 +202,7 @@ func (c *conn) receive() (err error) {
 		return
 	}
 	body := make([]byte, length)
-	if _, err = io.ReadAtLeast(c.Conn, body, length); err != nil {
+	if _, err = io.ReadAtLeast(c.reader, body, length); err != nil {
 		return
 	}
 	if !ok {

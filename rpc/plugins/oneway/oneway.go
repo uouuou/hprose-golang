@@ -16,7 +16,7 @@ package oneway
 import (
 	"context"
 
-	"github.com/hprose/hprose-golang/v3/rpc/core"
+	"github.com/uouuou/hprose-golang/v3/rpc/core"
 )
 
 // Oneway plugin for hprose.

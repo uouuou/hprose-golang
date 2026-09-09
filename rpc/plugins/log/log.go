@@ -18,8 +18,8 @@ import (
 	"fmt"
 	"unsafe"
 
-	"github.com/hprose/hprose-golang/v3/rpc/core"
 	jsoniter "github.com/json-iterator/go"
+	"github.com/uouuou/hprose-golang/v3/rpc/core"
 )
 
 // Log plugin for hprose.

@@ -17,7 +17,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/hprose/hprose-golang/v3/rpc/core"
+	"github.com/uouuou/hprose-golang/v3/rpc/core"
 )
 
 // Forward plugin for hprose.

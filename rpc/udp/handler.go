@@ -18,8 +18,8 @@ import (
 	"net"
 	"reflect"
 
-	"github.com/hprose/hprose-golang/v3/internal/convert"
-	"github.com/hprose/hprose-golang/v3/rpc/core"
+	"github.com/uouuou/hprose-golang/v3/internal/convert"
+	"github.com/uouuou/hprose-golang/v3/rpc/core"
 )
 
 type Handler struct {

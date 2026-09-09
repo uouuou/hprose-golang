@@ -19,9 +19,9 @@ import (
 	"strings"
 	"testing"
 
-	. "github.com/hprose/hprose-golang/v3/io"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/stretchr/testify/assert"
+	. "github.com/uouuou/hprose-golang/v3/io"
 )
 
 func TestDecodeInt16SlicePtr(t *testing.T) {
