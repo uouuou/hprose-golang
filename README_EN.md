@@ -437,8 +437,27 @@ two rounds):
 
 For reference, gRPC reaches 209,092 QPS in the same 128-concurrency 64B
 scenario — the optimized single-connection hprose-tcp is ~2.4× faster.
-Full reports live in the ShuHeSdk repository under
-`docs/rpc-optimization-report.md` and `docs/rpc-benchmark-report.md`.
+Measurement setup: 127.0.0.1 loopback, one-way Echo, single client connection
+with multiplexing, median of two rounds, Go 1.26 (Windows amd64).
+
+Second optimization round (2026-09, profile-driven): per-request overhead
+eliminated on the TCP path (allocations −21%, p99 −6.6%), and the HTTP/2
+plateau root cause fixed — frames on a single HTTP/2 connection are flushed
+serially (two Flushes per request, both under the connection-level write lock,
+with no cross-stream coalescing). Connection sharding (default
+`min(GOMAXPROCS, 4)` independent clients) lifts h2c/h2 throughput ~2.5–3× at
+high concurrency:
+
+| Scenario         |                    Before |                     After | Note                      |
+|------------------|--------------------------:|--------------------------:|---------------------------|
+| h2c 64B × 128    |   15,775 QPS (p50 8.47ms) |   47,143 QPS (p50 2.29ms) | 3.0×, connection sharding |
+| h2 TLS 64B × 128 |                17,382 QPS |                43,251 QPS | 2.5×                      |
+| h2c 64B × 16     |                15,509 QPS |                36,046 QPS | 2.3×                      |
+| tcp 64B × 128    | 425,397 QPS (p99 1.094ms) | 440,136 QPS (p99 1.022ms) | allocations −21%          |
+
+Sharding can be turned off by assigning a custom Transport to
+`Transport.HTTPClient`; the plain `http://` path is unaffected (HTTP/1.1
+connection pools already open multiple connections).
 
 ## Testing
 
