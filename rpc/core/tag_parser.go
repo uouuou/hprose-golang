@@ -86,8 +86,12 @@ func (tp *TagParser) parseMapValue(tag string) (string, string) {
 }
 
 func (tp *TagParser) parseMap(key string) map[string]interface{} {
-	m := make(map[string]interface{})
 	tag := tp.tag.Get(key)
+	if tag == "" {
+		// 绝大多数方法没有 header/context tag，省掉每次调用的两次 map 分配。
+		return nil
+	}
+	m := make(map[string]interface{})
 	for tag != "" {
 		var name string
 		var c byte

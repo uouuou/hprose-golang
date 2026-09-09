@@ -17,6 +17,7 @@ import (
 	"context"
 	"reflect"
 	"sync"
+	"sync/atomic"
 )
 
 // NextPluginHandler must be one of NextInvokeHandler or NextIOHandler.
@@ -66,20 +67,28 @@ type PluginManager interface {
 	Unuse(handler ...PluginHandler)
 }
 
+// handlerHolder 包装插件链头，供 atomic.Pointer 原子替换。
+type handlerHolder struct {
+	handler NextPluginHandler
+}
+
 type pluginManager struct {
 	sync.RWMutex
 	handlers       []PluginHandler
 	defaultHandler NextPluginHandler
-	handler        NextPluginHandler
+	// handler 用原子快照替代每请求 RWMutex.RLock：Handler() 在一次 RPC 往返
+	// 会被调用 2~4 次，高并发下读锁的 cacheline 争用会进入热路径。
+	handler        atomic.Pointer[handlerHolder]
 	getNextHandler func(handler PluginHandler, next NextPluginHandler) NextPluginHandler
 }
 
 func newPluginManager(handler NextPluginHandler, getNextHandler func(handler PluginHandler, next NextPluginHandler) NextPluginHandler) PluginManager {
-	return &pluginManager{
-		handler:        handler,
+	pm := &pluginManager{
 		defaultHandler: handler,
 		getNextHandler: getNextHandler,
 	}
+	pm.handler.Store(&handlerHolder{handler: handler})
+	return pm
 }
 
 func (pm *pluginManager) rebuildHandler() {
@@ -88,13 +97,11 @@ func (pm *pluginManager) rebuildHandler() {
 	for i := n - 1; i >= 0; i-- {
 		next = pm.getNextHandler(pm.handlers[i], next)
 	}
-	pm.handler = next
+	pm.handler.Store(&handlerHolder{handler: next})
 }
 
 func (pm *pluginManager) Handler() NextPluginHandler {
-	pm.RLock()
-	defer pm.RUnlock()
-	return pm.handler
+	return pm.handler.Load().handler
 }
 
 func (pm *pluginManager) Use(handler ...PluginHandler) {

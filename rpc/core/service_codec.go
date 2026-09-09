@@ -83,7 +83,11 @@ func (c serviceCodec) Decode(request []byte, context *ServiceContext) (name stri
 	if tag == io.TagHeader {
 		var h map[string]interface{}
 		decoder.Decode(&h)
-		NewDict(h).CopyTo(context.RequestHeaders())
+		if rc, ok := context.Context.(*rpcContext); ok {
+			rc.adoptRequestHeaders(h)
+		} else {
+			NewDict(h).CopyTo(context.RequestHeaders())
+		}
 		decoder.Reset()
 		tag = decoder.NextByte()
 	}
@@ -124,14 +128,17 @@ func (c serviceCodec) decodeArguments(method Method, decoder *io.Decoder) (args 
 	}
 	count := decoder.ReadInt()
 	parameters := method.Parameters()
-	paramTypes := make([]reflect.Type, count)
+	// 参数个数与声明一致时直接复用方法缓存的类型切片，省掉每请求一次切片分配。
+	paramTypes := parameters
 	if method.Func().Type().IsVariadic() {
+		paramTypes = make([]reflect.Type, count)
 		n := len(parameters)
 		copy(paramTypes, parameters[:n-1])
 		for i := n - 1; i < count; i++ {
 			paramTypes[i] = parameters[n-1].Elem()
 		}
-	} else {
+	} else if count != len(parameters) {
+		paramTypes = make([]reflect.Type, count)
 		copy(paramTypes, parameters)
 	}
 	args = make([]interface{}, count)

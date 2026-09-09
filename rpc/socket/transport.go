@@ -34,9 +34,34 @@ type conn struct {
 	counter  int32
 	onClose  func(net.Conn)
 	once     sync.Once
-	// 以下字段仅 Send goroutine 访问，用于批量写的缓冲复用
-	buffers net.Buffers
+	// pool 复用每请求的结果通道（cap 1，约 96B/次）。通道可能残留超时请求的
+	// 迟到响应，等待侧用完整 index 校验丢弃，因此复用是安全的。
+	pool sync.Pool
+	// 以下字段仅 Send goroutine 访问，用于批量写的缓冲复用。
+	// bufs 是固定 scratch 数组：net.Buffers.WriteTo 会消费（前移并置 nil）切片，
+	// 因此只能把它的副本交给 WriteTo，数组本身才能跨批次复用。
+	bufs    [2 * maxBatchFrames][]byte
 	headers [maxBatchFrames][12]byte
+}
+
+func (c *conn) getResultChan() chan data {
+	if v := c.pool.Get(); v != nil {
+		return v.(chan data)
+	}
+	return make(chan data, 1)
+}
+
+// putResultChan 归还前尽力清空残留值；即便清理与并发投递竞争，
+// 复用方也会用 index 校验丢弃不属于自己的响应。
+func (c *conn) putResultChan(resultChan chan data) {
+	for {
+		select {
+		case <-resultChan:
+		default:
+			c.pool.Put(resultChan)
+			return
+		}
+	}
 }
 
 func dial(ctx context.Context) (net.Conn, error) {
@@ -108,7 +133,7 @@ func (c *conn) rangeAndClean(f func(index int, resultChan chan data)) {
 
 func (c *conn) Transport(ctx context.Context, request []byte) (response []byte, err error) {
 	index := int(atomic.AddInt32(&c.counter, 1) & 0x7fffffff)
-	resultChan := make(chan data, 1)
+	resultChan := c.getResultChan()
 	c.store(index, resultChan)
 	select {
 	case <-ctx.Done():
@@ -118,15 +143,20 @@ func (c *conn) Transport(ctx context.Context, request []byte) (response []byte, 
 		Index: index,
 		Body:  request,
 	}:
-	case res := <-resultChan:
-		return res.Body, res.Error
 	}
-	select {
-	case <-ctx.Done():
-		c.delete(index)
-		return nil, ctx.Err()
-	case res := <-resultChan:
-		return res.Body, res.Error
+	for {
+		select {
+		case <-ctx.Done():
+			// 超时后不归还通道：仍可能有迟到响应投递进来，交给 GC 更简单安全。
+			c.delete(index)
+			return nil, ctx.Err()
+		case res := <-resultChan:
+			if res.Index == index {
+				c.putResultChan(resultChan)
+				return res.Body, res.Error
+			}
+			// 池化复用的通道上可能残留上一个请求的迟到响应，丢弃后继续等待。
+		}
 	}
 }
 
@@ -140,24 +170,15 @@ func (c *conn) Exit(onExit func(), err error) {
 	}
 }
 
-func (c *conn) send(request data) (err error) {
-	header := makeHeader(len(request.Body), request.Index)
-	if _, err = c.Write(header[:]); err != nil {
-		return
-	}
-	_, err = c.Write(request.Body)
-	return
-}
-
 // sendBatch 批量写请求：阻塞取首帧后，把就绪的后续帧合并为一次系统调用写出。
-// buffers/headers 仅 Send goroutine 访问，跨批次复用，无额外分配。
+// bufs/headers 仅 Send goroutine 访问，跨批次复用，无额外分配。
 func (c *conn) sendBatch(first data) error {
 	request := first
-	c.buffers = c.buffers[:0]
 	count, total := 0, 0
 	for {
-		c.headers[count] = makeHeader(len(request.Body), request.Index)
-		c.buffers = append(c.buffers, c.headers[count][:], request.Body)
+		putHeader(c.headers[count][:], len(request.Body), request.Index)
+		c.bufs[2*count] = c.headers[count][:]
+		c.bufs[2*count+1] = request.Body
 		count++
 		total += len(request.Body)
 		if count >= maxBatchFrames || total >= maxBatchBytes {
@@ -166,11 +187,17 @@ func (c *conn) sendBatch(first data) error {
 		select {
 		case request = <-c.requests:
 		default:
-			_, err := c.buffers.WriteTo(c.Conn)
-			return err
+			return c.writeBatch(count)
 		}
 	}
-	_, err := c.buffers.WriteTo(c.Conn)
+	return c.writeBatch(count)
+}
+
+// writeBatch 把 scratch 数组前 count 帧交给 WriteTo。传切片副本，
+// 使 WriteTo 内部的消费只作用于副本，c.bufs 跨批次保持可用。
+func (c *conn) writeBatch(count int) error {
+	buffers := net.Buffers(c.bufs[:2*count])
+	_, err := buffers.WriteTo(c.Conn)
 	return err
 }
 

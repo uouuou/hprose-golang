@@ -19,7 +19,10 @@ import (
 
 type contextKeyT string
 
-var contextKey = contextKeyT("github.com/uouuou/hprose-golang/rpc/core.Context")
+// contextKey 用指针而非字符串值：ctx.Value(key any) 会把 key 装箱，
+// 字符串 key 每次调用都要堆分配（FromContext 是每请求最热的分配点），
+// 指针 key 直接存入 interface 的数据字，零分配。
+var contextKey = new(contextKeyT)
 
 // Context for RPC.
 type Context interface {
@@ -91,6 +94,30 @@ func (c *rpcContext) Clone() Context {
 // WithContext returns a copy of the parent context and associates it with a core.Context.
 func WithContext(ctx context.Context, rpcContext Context) context.Context {
 	return context.WithValue(ctx, contextKey, rpcContext)
+}
+
+// adoptRequestHeaders 直接采用解码得到的 map 作为请求头。
+// 解码器总是新建 map，而服务端上下文每次请求都是新的（requestHeaders 为 nil），
+// 因此可以直接接管，省掉 NewDict + CopyTo 的一次 map 分配与逐项写入。
+func (c *rpcContext) adoptRequestHeaders(m map[string]interface{}) {
+	if c.requestHeaders == nil {
+		c.requestHeaders = dict(m)
+		return
+	}
+	for k, v := range m {
+		c.requestHeaders.Set(k, v)
+	}
+}
+
+// adoptResponseHeaders 语义同 adoptRequestHeaders，用于客户端响应头。
+func (c *rpcContext) adoptResponseHeaders(m map[string]interface{}) {
+	if c.responseHeaders == nil {
+		c.responseHeaders = dict(m)
+		return
+	}
+	for k, v := range m {
+		c.responseHeaders.Set(k, v)
+	}
 }
 
 // FromContext returns the core.Context bound to the context.

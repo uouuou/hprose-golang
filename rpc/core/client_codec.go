@@ -68,7 +68,11 @@ func (c clientCodec) Decode(response []byte, context *ClientContext) (result []i
 	if tag == io.TagHeader {
 		var h map[string]interface{}
 		decoder.Decode(&h)
-		NewDict(h).CopyTo(context.ResponseHeaders())
+		if rc, ok := context.Context.(*rpcContext); ok {
+			rc.adoptResponseHeaders(h)
+		} else {
+			NewDict(h).CopyTo(context.ResponseHeaders())
+		}
 		decoder.Reset()
 		tag = decoder.NextByte()
 	}

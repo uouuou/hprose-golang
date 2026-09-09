@@ -168,10 +168,11 @@ func (h *Handler) receive(ctx context.Context, r *bufio.Reader, conn net.Conn, q
 
 // send 批量写响应：阻塞取首帧后，把就绪的后续帧合并为一次系统调用写出。
 // 错误帧（协议级错误）写完后终止连接，与历史语义一致。
+// bufs 是固定 scratch 数组：net.Buffers.WriteTo 会消费切片，只能把副本交给它。
 func (h *Handler) send(ctx context.Context, conn net.Conn, queue chan data, errChan chan error) {
 	defer h.catch(ctx, errChan)
 	var (
-		buffers net.Buffers
+		bufs    [2 * maxBatchFrames][]byte
 		headers [maxBatchFrames][12]byte
 	)
 	for {
@@ -180,7 +181,6 @@ func (h *Handler) send(ctx context.Context, conn net.Conn, queue chan data, errC
 			return
 		case response := <-queue:
 			var fatal error
-			buffers = buffers[:0]
 			count, total := 0, 0
 		collect:
 			for {
@@ -194,8 +194,9 @@ func (h *Handler) send(ctx context.Context, conn net.Conn, queue chan data, errC
 					}
 					fatal = e
 				}
-				headers[count] = makeHeader(len(body), index)
-				buffers = append(buffers, headers[count][:], body)
+				putHeader(headers[count][:], len(body), index)
+				bufs[2*count] = headers[count][:]
+				bufs[2*count+1] = body
 				count++
 				total += len(body)
 				if fatal != nil || count >= maxBatchFrames || total >= maxBatchBytes {
@@ -207,6 +208,7 @@ func (h *Handler) send(ctx context.Context, conn net.Conn, queue chan data, errC
 					break collect
 				}
 			}
+			buffers := net.Buffers(bufs[:2*count])
 			if _, err := buffers.WriteTo(conn); err != nil {
 				h.reportError(ctx, errChan, err)
 				return

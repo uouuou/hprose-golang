@@ -34,21 +34,22 @@ const (
 	maxBatchBytes  = 64 * 1024
 )
 
-func makeHeader(length int, index int) (header [12]byte) {
-	header[11] = byte(index & 0xff)
-	header[10] = byte(index >> 8 & 0xff)
-	header[9] = byte(index >> 16 & 0xff)
-	header[8] = byte(index >> 24 & 0xff)
-	header[7] = byte(length & 0xff)
-	header[6] = byte(length >> 8 & 0xff)
-	header[5] = byte(length >> 16 & 0xff)
-	header[4] = byte((length >> 24 & 0xff) | 0x80)
-	crc := crc32.ChecksumIEEE(header[4:])
-	header[3] = byte(crc & 0xff)
-	header[2] = byte(crc >> 8 & 0xff)
-	header[1] = byte(crc >> 16 & 0xff)
-	header[0] = byte(crc >> 24 & 0xff)
-	return
+// putHeader 把 12 字节帧头写入 dst（要求 len(dst) >= 12）。
+// 直接写入目标缓冲而非返回值：返回值形式每次调用都会在堆上分配一个 [12]byte。
+func putHeader(dst []byte, length int, index int) {
+	dst[11] = byte(index & 0xff)
+	dst[10] = byte(index >> 8 & 0xff)
+	dst[9] = byte(index >> 16 & 0xff)
+	dst[8] = byte(index >> 24 & 0xff)
+	dst[7] = byte(length & 0xff)
+	dst[6] = byte(length >> 8 & 0xff)
+	dst[5] = byte(length >> 16 & 0xff)
+	dst[4] = byte((length >> 24 & 0xff) | 0x80)
+	crc := crc32.ChecksumIEEE(dst[4:12])
+	dst[3] = byte(crc & 0xff)
+	dst[2] = byte(crc >> 8 & 0xff)
+	dst[1] = byte(crc >> 16 & 0xff)
+	dst[0] = byte(crc >> 24 & 0xff)
 }
 
 func parseHeader(header [12]byte) (length int, index int, ok bool) {
